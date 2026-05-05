@@ -15,10 +15,13 @@ def create_spark_session():
     """
     # In production, this would connect to a YARN or Kubernetes cluster.
     # Here, 'local[*]' means run locally using all available CPU cores on your Mac.
-    return SparkSession.builder \
-        .appName("CryptoPulse_RealTime_Aggregator") \
-        .master("local[*]") \
+    builder: SparkSession.Builder = SparkSession.builder  # type: ignore[attr-defined]
+    return (
+        builder
+        .appName("CryptoPulse_RealTime_Aggregator")
+        .master("local[*]")
         .getOrCreate()
+    )
 
 def get_binance_schema():
     """
