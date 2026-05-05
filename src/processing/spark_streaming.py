@@ -77,17 +77,40 @@ def process_stream():
             avg("price").alias("average_price"),
             spark_sum("quantity").alias("total_volume")
         )
+    
+    # UNPACK THE WINDOW FOR CASSANDRA
+    # We must flatten the nested 'window' struct into exact column names that match our Cassandra schema.
+    final_df = aggregated_df \
+        .withColumn("window_start", col("window.start")) \
+        .withColumn("window_end", col("window.end")) \
+        .drop("window")
 
     # 5. OUTPUT TO CONSOLE
     # For now, we just print to the console to verify our logic.
-    # todo next we will change this to write to HBase.
-    query = aggregated_df.writeStream \
+    # todo next we will change this to write to HBase or Cassandra.
+    # query = aggregated_df.writeStream \
+    #     .outputMode("update") \
+    #     .format("console") \
+    #     .option("truncate", "false") \
+    #     .start()
+
+    # 5. OUTPUT TO CASSANDRA
+    query = final_df.writeStream \
         .outputMode("update") \
-        .format("console") \
-        .option("truncate", "false") \
+        .foreachBatch(write_to_cassandra) \
+        .option("checkpointLocation", "/tmp/spark_checkpoints_crypto") \
         .start()
 
     query.awaitTermination()
+
+def write_to_cassandra(batch_df, batch_id):
+        # batch_df is a static DataFrame containing just the updated rows for this micro-batch
+        batch_df.write \
+            .format("org.apache.spark.sql.cassandra") \
+            .option("keyspace", "cryptopulse") \
+            .option("table", "real_time_aggregates") \
+            .mode("append") \
+            .save()
 
 if __name__ == "__main__":
     process_stream()
