@@ -17,12 +17,17 @@ publisher = CryptoKafkaPublisher()
 def on_message(ws, message):
     """Triggered every time a new trade arrives from Binance."""
     try:
-        data = json.loads(message)
+        raw_payload = json.loads(message)
         
+        #UNWRAP THE COMBINED STREAM
+        # If the payload has a 'data' wrapper (Combined Stream), extract the inner dictionary.
+        # If it doesn't (Single Stream), just use the payload as-is.
+        trade_data = raw_payload.get("data", raw_payload)
+
         # Hand the data off to the Kafka client
-        publisher.publish(data)
+        publisher.publish(trade_data)
         
-        logger.info(f"Sent trade to Kafka: Price={data.get('p')}, Quantity={data.get('q')}")
+        logger.info(f"Sent {trade_data.get('s')} to Kafka: Price={trade_data.get('p')}, Quantity={trade_data.get('q')}")
     except Exception as e:
         logger.error(f"Error processing message: {e}")
 
