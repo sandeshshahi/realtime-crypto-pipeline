@@ -46,3 +46,11 @@ htmlcov/
 
 # Startup script
 start.txt
+
+# Database Volumes
+cassandra_data/
+hadoop_namenode/
+hadoop_datanode/
+
+# Spark Checkpoints
+/tmp/spark_checkpoints_crypto/

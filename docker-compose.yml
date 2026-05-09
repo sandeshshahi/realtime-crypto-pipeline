@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -35,6 +33,8 @@ services:
       - "9042:9042" # The standard port Spark will use to connect
     environment:
       - CASSANDRA_CLUSTER_NAME=CryptoCluster
+    volumes:
+      - ./cassandra_data:/var/lib/cassandra
     healthcheck:
       test:
         [
@@ -50,3 +50,32 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    hostname: namenode # Forces the internal OS name
+    platform: linux/amd64
+    ports:
+      - "9870:9870" # Web UI
+      - "9000:9000" # Spark connection port
+    environment:
+      - CLUSTER_NAME=crypto_cluster
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    volumes:
+      - ./hadoop_namenode:/hadoop/dfs/name
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    hostname: datanode # Forces the internal OS name
+    platform: linux/amd64
+    ports:
+      - "9864:9864"
+      - "9866:9866" # Data transfer port
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    depends_on:
+      - namenode
+    volumes:
+      - ./hadoop_datanode:/hadoop/dfs/data

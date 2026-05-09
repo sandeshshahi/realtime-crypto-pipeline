@@ -30,7 +30,7 @@ def process_stream():
     # We load this into memory once so Spark can quickly look up values
     static_metadata_df = spark.read \
         .option("header", "true") \
-        .csv("data/crypto_metadata.csv")
+        .csv("hdfs://namenode:9000/user/data/crypto_metadata.csv")
 
     # READ FROM KAFKA
     raw_df = spark.readStream \
