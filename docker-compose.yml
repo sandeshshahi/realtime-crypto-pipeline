@@ -79,3 +79,23 @@ services:
       - namenode
     volumes:
       - ./hadoop_datanode:/hadoop/dfs/data
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      # Maps your local config file into the container
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin # Sets default login password
+      - GF_INSTALL_PLUGINS=hadesarchitect-cassandra-datasource # Adds Cassandra support
+    depends_on:
+      - prometheus
