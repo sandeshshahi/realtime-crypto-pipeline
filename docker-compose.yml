@@ -111,9 +111,17 @@ services:
       - GF_INSTALL_PLUGINS=hadesarchitect-cassandra-datasource # Adds Cassandra support
     depends_on:
       - prometheus
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
     networks:
       - big-data-net
 
 networks:
   big-data-net:
     driver: bridge
+
+volumes:
+  grafana-storage:
