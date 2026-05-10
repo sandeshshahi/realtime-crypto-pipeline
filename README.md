@@ -108,6 +108,8 @@ Login with admin / admin
 
 Open the Crypto-Stream Dashboard to view the live, logarithmically scaled asset visualizations.
 
+---
+
 ## Troubleshooting & Operations
 
 Spark ↔ Kafka Connectivity: When running Spark locally on the host, use localhost:9092. If containerizing the Spark job, use the Docker bridge network DNS: kafka:29092.
