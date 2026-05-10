@@ -12,10 +12,14 @@ source venv/bin/activate
 echo "Initializing Kafka Topic..."
 docker exec -it kafka kafka-topics \
   --create \
+  --if-not-exists \
   --topic crypto_trades \
   --bootstrap-server localhost:9092 \
   --partitions 3 \
   --replication-factor 1
+
+echo "Initializing Cassandra Schema..."
+cat cassandra/schema.cql | docker exec -i cassandra cqlsh
 
 echo "Starting Binance Producer..."
 python -m src.ingestion.binance_producer &

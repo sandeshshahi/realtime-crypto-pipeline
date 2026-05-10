@@ -8,6 +8,8 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - big-data-net
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -24,6 +26,8 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    networks:
+      - big-data-net
 
   cassandra:
     image: cassandra:4.1
@@ -50,6 +54,8 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
+    networks:
+      - big-data-net
 
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
@@ -64,6 +70,8 @@ services:
       - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
     volumes:
       - ./hadoop_namenode:/hadoop/dfs/name
+    networks:
+      - big-data-net
 
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
@@ -79,6 +87,8 @@ services:
       - namenode
     volumes:
       - ./hadoop_datanode:/hadoop/dfs/data
+    networks:
+      - big-data-net
 
   prometheus:
     image: prom/prometheus:latest
@@ -88,6 +98,8 @@ services:
     volumes:
       # Maps your local config file into the container
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - big-data-net
 
   grafana:
     image: grafana/grafana:latest
@@ -99,3 +111,9 @@ services:
       - GF_INSTALL_PLUGINS=hadesarchitect-cassandra-datasource # Adds Cassandra support
     depends_on:
       - prometheus
+    networks:
+      - big-data-net
+
+networks:
+  big-data-net:
+    driver: bridge

@@ -54,3 +54,5 @@ hadoop_datanode/
 
 # Spark Checkpoints
 /tmp/spark_checkpoints_crypto/
+
+.DS_Store
