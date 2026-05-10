@@ -22,6 +22,12 @@ This project implements a production-grade, end-to-end Big Data pipeline designe
 - **Adapter Integration:** The `spark-submit` command passes a comma-separated list to the `--packages` flag to dynamically provision both the Kafka adapter and the Cassandra connector.
 - **State Management:** Implements event-time watermarking to handle late-arriving data and prevent state memory bloat.
 
+### Real-Time Anomaly Detection (Volatility Tracking)
+
+- **Streaming-Safe Math:** Calculates the high/low price spread natively within Spark's tumbling windows to avoid the memory overhead of non-time-based windowing functions.
+- **Statistical Flagging:** Computes the `price_swing_pct` for every asset, every minute. If an asset's price fluctuates by more than 1.5% within a single 60-second window, the pipeline triggers an `is_anomaly = True` boolean flag.
+- **Optimized Storage:** Stores anomalies as highly-indexable booleans rather than text strings, enabling rapid NoSQL querying and live "Alert Feeds" in the visualization layer.
+
 ### Data Enrichment with Spark SQL (HDFS Integration)
 
 - **Static Reference Data:** A static CSV file containing asset metadata (e.g., Full Name, Category, Market Type) is stored within the Hadoop Distributed File System (HDFS).
