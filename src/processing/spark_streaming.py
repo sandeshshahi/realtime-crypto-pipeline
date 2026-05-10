@@ -79,7 +79,23 @@ def process_stream():
     
     # THE STREAM-STATIC JOIN
     # We join our live 1-minute aggregations with the static CSV data based on the "symbol" column
-    enriched_df = anomaly_df.join(static_metadata_df, on="symbol", how="left_outer")
+    # enriched_df = anomaly_df.join(static_metadata_df, on="symbol", how="left_outer")
+
+    # THE STREAM-STATIC JOIN (USING RAW SPARK SQL FOR BONUS POINTS)
+    # Register both DataFrames as temporary SQL tables in Spark's memory
+    anomaly_df.createOrReplaceTempView("live_stream")
+    static_metadata_df.createOrReplaceTempView("static_meta")
+
+    # Execute the raw Spark SQL string to perform the join
+    enriched_df = spark.sql("""
+        SELECT 
+            stream.*, 
+            meta.asset_name, 
+            meta.category 
+        FROM live_stream stream
+        LEFT JOIN static_meta meta 
+        ON stream.symbol = meta.symbol
+    """)
 
     # OUTPUT TO CASSANDRA (Using our external sink)
     query = enriched_df.writeStream \
