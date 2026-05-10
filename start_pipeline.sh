@@ -19,7 +19,7 @@ docker exec -it kafka kafka-topics \
   --replication-factor 1
 
 echo "Initializing Cassandra Schema..."
-cat cassandra/schema.cql | docker exec -i cassandra cqlsh
+cat src/cassandra/schema.cql | docker exec -i cassandra cqlsh
 
 echo "Starting Binance Producer..."
 python -m src.ingestion.binance_producer &

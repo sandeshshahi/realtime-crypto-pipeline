@@ -1,6 +1,6 @@
 import os
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json, window, avg, sum as spark_sum
+from pyspark.sql.functions import col, from_json, window, avg, sum as spark_sum, max as spark_max, min as spark_min, when 
 from pyspark.sql.types import DoubleType
 from dotenv import load_dotenv
 
@@ -58,17 +58,28 @@ def process_stream():
         .groupBy(window(col("trade_timestamp"), "1 minute"), col("s").alias("symbol")) \
         .agg(
             avg("price").alias("average_price"),
-            spark_sum("quantity").alias("total_volume")
+            spark_sum("quantity").alias("total_volume"),
+            spark_max("price").alias("high_price"), # Track the highest price in this minute
+            spark_min("price").alias("low_price") ,  # Track the lowest price in this minute
         )
     
     final_df = aggregated_df \
         .withColumn("window_start", col("window.start")) \
         .withColumn("window_end", col("window.end")) \
         .drop("window")
+
+    # ANOMALY DETECTION (Streaming-Safe Math)
+    # Calculate the % swing between the highest and lowest price within the 60 seconds
+    anomaly_df = final_df \
+        .withColumn("price_swing_pct", ((col("high_price") - col("low_price")) / col("low_price")) * 100) \
+        .withColumn("is_anomaly", 
+            when(col("price_swing_pct") > 1.5, True) # If price swings > 1.5% in 60s, flag True
+            .otherwise(False)
+        )
     
     # THE STREAM-STATIC JOIN
     # We join our live 1-minute aggregations with the static CSV data based on the "symbol" column
-    enriched_df = final_df.join(static_metadata_df, on="symbol", how="left_outer")
+    enriched_df = anomaly_df.join(static_metadata_df, on="symbol", how="left_outer")
 
     # OUTPUT TO CASSANDRA (Using our external sink)
     query = enriched_df.writeStream \
