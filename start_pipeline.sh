@@ -37,5 +37,5 @@ SPARK_PID=$!
 echo "Pipeline is running in the background!"
 echo "Press [Ctrl+C] to safely shut down both processes."
 
-trap "echo '🛑 Shutting down pipeline...'; kill $PRODUCER_PID $SPARK_PID; exit" INT
+trap "echo '🛑 Shutting down pipeline...'; kill -9 $PRODUCER_PID $SPARK_PID 2>/dev/null; exit 0" INT
 wait
