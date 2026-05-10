@@ -42,10 +42,10 @@ This project implements a production-grade, end-to-end Big Data pipeline designe
 
 ### Visualization & Dashboarding (Grafana)
 
+- **Zero-Touch Provisioning (IaC):** Employs Grafana provisioning via YAML configurations and Docker volume mounts to automatically initialize the Cassandra data source and load the pre-built JSON dashboard on container startup without any manual UI interaction.
 - **Live Dashboard:** Connects Cassandra to Grafana 10.x using the `hadesarchitect-cassandra-datasource` plugin.
 - **Logarithmic Scaling:** Employs base-10 logarithmic scaling to accurately compare high-value assets (Bitcoin) against lower-value assets (ADA/XRP) on the same Y-axis.
 - **Advanced Data Transformations:** Uses a transformation pipeline consisting of `Merge series`, `Sort by (time)`, and `Partition by values` to format raw NoSQL multi-frame data into clean, continuous time-series visual lines.
-
 ### Full Observability Stack (Prometheus)
 
 - **Health Monitoring:** Integrates Prometheus to scrape metrics and monitor infrastructure health.
