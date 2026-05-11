@@ -104,7 +104,11 @@ chmod +x start_pipeline.sh
 
 Navigate to http://localhost:3000
 
-Login with admin / admin
+Login with
+
+- **Username:** admin
+
+- **Password:** admin
 
 Go to Dashboards to view the auto-provisioned analytics:
 
