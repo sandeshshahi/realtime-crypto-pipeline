@@ -2,14 +2,11 @@ apiVersion: 1
 datasources:
   - name: Cassandra
     type: hadesarchitect-cassandra-datasource
-    uid: ffll2f3hp4em8f
+    uid: cassandra-datasource
     access: proxy
-    url: cassandra:9042
-    isDefault: true
-    editable: false
+    url: "cassandra:9042"
     jsonData:
       keyspace: cryptopulse
-      consistency: ONE
-      user: cassandra
-    secureJsonData:
-      password: cassandra
+      consistency: LOCAL_ONE
+    version: 2
+    editable: true
