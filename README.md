@@ -42,10 +42,12 @@ This project implements a production-grade, end-to-end Big Data pipeline designe
 
 ### Visualization & Dashboarding (Grafana)
 
-- **Zero-Touch Provisioning (IaC):** Employs Grafana provisioning via YAML configurations and Docker volume mounts to automatically initialize the Cassandra data source and load the pre-built JSON dashboard on container startup without any manual UI interaction.
+- **Zero-Touch Provisioning (IaC):** Employs Grafana provisioning via YAML configurations and Docker volume mounts to automatically initialize the Cassandra data source (forcing LOCAL_ONE consistency and hardcoded UIDs to prevent state ghosts) and load pre-built JSON dashboards on container startup.
+- **Separation of Concerns:** Features two dedicated dashboards: a Crypto Stream dashboard for raw metric monitoring, and a Log-Scale Pricing dashboard to accurately compare high-value assets (Bitcoin) against lower-value assets (ADA/XRP) on the same Y-axis.
 - **Live Dashboard:** Connects Cassandra to Grafana 10.x using the `hadesarchitect-cassandra-datasource` plugin.
 - **Logarithmic Scaling:** Employs base-10 logarithmic scaling to accurately compare high-value assets (Bitcoin) against lower-value assets (ADA/XRP) on the same Y-axis.
-- **Advanced Data Transformations:** Uses a transformation pipeline consisting of `Merge series`, `Sort by (time)`, and `Partition by values` to format raw NoSQL multi-frame data into clean, continuous time-series visual lines.
+- **Advanced Data Transformations:** Uses a transformation pipeline consisting of Merge series, Sort by (time), and Partition by values to format raw NoSQL multi-frame data into clean, continuous time-series visual lines.
+
 ### Full Observability Stack (Prometheus)
 
 - **Health Monitoring:** Integrates Prometheus to scrape metrics and monitor infrastructure health.
@@ -53,8 +55,9 @@ This project implements a production-grade, end-to-end Big Data pipeline designe
 
 ### Infrastructure Automation & Orchestration
 
-- **Docker Networking:** Enforces network isolation and automatic service discovery by placing all containers (Zookeeper, Kafka, Cassandra, Hadoop, Prometheus, Grafana) on a dedicated `big-data-net` bridge network.
-- **Idempotent Initialization:** The custom `start_pipeline.sh` orchestrator script utilizes `--if-not-exists` flags and the `schema.cql` file to automatically provision Kafka topics and Cassandra tables on startup without manual intervention or crashing.
+- **Cross-Platform Orchestrator:** The start_pipeline.sh script features dynamic OS-detection (Mac/Linux) to automatically locate, verify, and enforce Java 17 requirements, overriding system PATH variables to prevent JVM security crashes (getSubject exceptions) without manual configuration.
+- **Docker Networking & DNS Bypass:** Enforces network isolation and automatic service discovery by placing all containers (Zookeeper, Kafka, Cassandra, Hadoop, Prometheus, Grafana) on a dedicated `big-data-net` bridge network.Forces HDFS to map via localhost:9000 for host-side Spark execution, elegantly bypassing Docker internal DNS restrictions on Mac environments.
+- **Idempotent Initialization:** The script automatically uploads HDFS files, clears stale Spark checkpoints, creates Kafka topics, and builds Cassandra schemas before launching the jobs.
 - **Graceful Shutdowns:** Traps `SIGINT` (Ctrl+C) signals to simultaneously and safely terminate both the Python producer and the Spark Streaming engine.
 
 ---
@@ -89,17 +92,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**3. Load the Static Metadata into HDFS**
-Once the Hadoop Namenode is healthy, copy the static CSV file into the distributed file system for the Spark SQL join:
-
-```bash
-docker cp data/crypto_metadata.csv namenode:/tmp/
-docker exec -it namenode hdfs dfs -mkdir -p /data
-docker exec -it namenode hdfs dfs -put -f /tmp/crypto_metadata.csv /data/
-```
-
-**4. Execute the Pipeline Orchestrator**
-Run the custom Bash script to initialize the database schema, create the Kafka topics, and launch the real-time ingestion and processing jobs:
+**3. Execute the Zero-Touch Pipeline Orchestrator**
+Run the custom Bash script. It will automatically detect your OS, enforce Java 17, upload the static CSV to Hadoop, build the Cassandra schema, and launch both the producer and streaming engine:
 
 ```bash
 chmod +x start_pipeline.sh
@@ -112,7 +106,10 @@ Navigate to http://localhost:3000
 
 Login with admin / admin
 
-Open the Crypto-Stream Dashboard to view the live, logarithmically scaled asset visualizations.
+Go to Dashboards to view the auto-provisioned analytics:
+
+- **Crypto Prices (Log Scale)**
+- **Crypto Stream Analytics**
 
 ---
 
