@@ -26,11 +26,13 @@ def process_stream():
     spark.sparkContext.setLogLevel("WARN")
     print("Spark Engine initialized. Reading from Kafka...")
 
-    # READ THE STATIC CSV DATA 
-    # We load this into memory once so Spark can quickly look up values
+    # READ THE STATIC CSV DATA FROM HDFS
+    # HDFS_NAMENODE env var allows the start script to pass the container IP when
+    # running Spark on the host (where Docker's internal DNS doesn't resolve).
+    hdfs_namenode = os.environ.get('HDFS_NAMENODE', 'namenode:9000')
     static_metadata_df = spark.read \
         .option("header", "true") \
-        .csv("hdfs://namenode:9000/user/data/crypto_metadata.csv")
+        .csv(f"hdfs://{hdfs_namenode}/user/data/crypto_metadata.csv")
 
     # READ FROM KAFKA
     raw_df = spark.readStream \
@@ -38,6 +40,7 @@ def process_stream():
         .option("kafka.bootstrap.servers", KAFKA_BROKER) \
         .option("subscribe", KAFKA_TOPIC) \
         .option("startingOffsets", "latest") \
+        .option("failOnDataLoss", "false") \
         .load()
 
     # PARSE THE JSON (Using our external schema)
@@ -83,18 +86,25 @@ def process_stream():
 
     # THE STREAM-STATIC JOIN (USING RAW SPARK SQL FOR BONUS POINTS)
     # Register both DataFrames as temporary SQL tables in Spark's memory
-    anomaly_df.createOrReplaceTempView("live_stream")
-    static_metadata_df.createOrReplaceTempView("static_meta")
+    anomaly_df.createOrReplaceTempView("aggregates")
+    static_metadata_df.createOrReplaceTempView("metadata")
 
     # Execute the raw Spark SQL string to perform the join
     enriched_df = spark.sql("""
-        SELECT 
-            stream.*, 
-            meta.asset_name, 
-            meta.category 
-        FROM live_stream stream
-        LEFT JOIN static_meta meta 
-        ON stream.symbol = meta.symbol
+        SELECT
+            a.window_start,
+            a.window_end,
+            a.symbol,
+            a.average_price,
+            a.total_volume,
+            a.high_price,
+            a.low_price,
+            a.price_swing_pct,
+            a.is_anomaly,
+            m.asset_name,
+            m.category
+        FROM aggregates a
+        LEFT JOIN metadata m ON a.symbol = m.symbol
     """)
 
     # OUTPUT TO CASSANDRA (Using our external sink)
