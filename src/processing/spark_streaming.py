@@ -1,11 +1,12 @@
 import os
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json, window, avg, sum as spark_sum, max as spark_max, min as spark_min, when 
+from pyspark.sql.functions import col, expr, from_json, window, avg, sum as spark_sum, max as spark_max, min as spark_min, when 
 from pyspark.sql.types import DoubleType
+from pyspark.sql.avro.functions import from_avro
 from dotenv import load_dotenv
 
 
-from src.processing.schemas import get_binance_schema
+from src.processing.schemas import get_binance_schema, fetch_avro_schema_from_registry
 from src.processing.sinks import write_to_cassandra
 
 load_dotenv()
@@ -26,6 +27,11 @@ def process_stream():
     spark.sparkContext.setLogLevel("WARN")
     print("Spark Engine initialized. Reading from Kafka...")
 
+    # FETCH THE AVRO SCHEMA FROM SCHEMA REGISTRY (Data Contract enforcement)
+    # This ensures Spark always uses the same schema the producer registered
+    avro_schema_str = fetch_avro_schema_from_registry(KAFKA_TOPIC)
+    print(f"Fetched Avro schema from Schema Registry for topic '{KAFKA_TOPIC}'")
+
     # READ THE STATIC CSV DATA FROM HDFS
     # HDFS_NAMENODE env var allows the start script to pass the container IP when
     # running Spark on the host (where Docker's internal DNS doesn't resolve).
@@ -43,11 +49,16 @@ def process_stream():
         .option("failOnDataLoss", "false") \
         .load()
 
-    # PARSE THE JSON (Using our external schema)
-    schema = get_binance_schema()
-    parsed_df = raw_df.selectExpr("CAST(value AS STRING)") \
-        .select(from_json(col("value"), schema).alias("data")) \
-        .select("data.*")
+    # DESERIALIZE AVRO (Using Schema Registry data contract)
+    # The first 5 bytes of each Confluent Avro message are a magic byte + schema ID.
+    # We strip them with substring(6) and pass the raw Avro payload to from_avro().
+    parsed_df = raw_df.select(
+        from_avro(
+            expr("substring(value, 6)"),
+            avro_schema_str,
+            {"mode": "PERMISSIVE"}
+        ).alias("data")
+    ).select("data.*")
 
     # TYPE CASTING
     cleaned_df = parsed_df \
@@ -80,10 +91,6 @@ def process_stream():
             .otherwise(False)
         )
     
-    # THE STREAM-STATIC JOIN
-    # We join our live 1-minute aggregations with the static CSV data based on the "symbol" column
-    # enriched_df = anomaly_df.join(static_metadata_df, on="symbol", how="left_outer")
-
     # THE STREAM-STATIC JOIN (USING RAW SPARK SQL FOR BONUS POINTS)
     # Register both DataFrames as temporary SQL tables in Spark's memory
     anomaly_df.createOrReplaceTempView("aggregates")
