@@ -95,6 +95,13 @@ docker exec namenode hdfs dfs -put -f /tmp/crypto_metadata.csv /user/data/crypto
 echo "Resolving HDFS namenode IP for host-side Spark..."
 export HDFS_NAMENODE="localhost:9000"
 
+echo "Waiting for Schema Registry to be ready..."
+until curl -s http://localhost:8081/subjects > /dev/null 2>&1; do
+  echo "  Schema Registry not ready yet, retrying in 3s..."
+  sleep 3
+done
+echo "✅ Schema Registry is ready."
+
 echo "Clearing stale Spark checkpoints..."
 rm -rf /tmp/spark_checkpoints_crypto
 
@@ -102,9 +109,16 @@ echo "Starting Binance Producer..."
 python -m src.ingestion.binance_producer &
 PRODUCER_PID=$!
 
+echo "Waiting for Avro schema to be registered in Schema Registry..."
+until curl -s http://localhost:8081/subjects/crypto_trades-value/versions/latest > /dev/null 2>&1; do
+  echo "  Schema not registered yet (waiting for first message), retrying in 3s..."
+  sleep 3
+done
+echo "✅ Avro schema registered. Starting Spark..."
+
 echo "Starting Spark Streaming Engine..."
 spark-submit \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,com.datastax.spark:spark-cassandra-connector_2.12:3.5.0 \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,com.datastax.spark:spark-cassandra-connector_2.12:3.5.0,org.apache.spark:spark-avro_2.12:3.5.0 \
   --conf spark.cassandra.connection.host=127.0.0.1 \
   --conf spark.cassandra.connection.port=9042 \
   --conf spark.hadoop.dfs.client.use.datanode.hostname=true \
