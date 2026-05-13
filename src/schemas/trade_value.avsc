@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "BinanceTrade",
+  "namespace": "com.cryptopulse",
+  "fields": [
+    {"name": "e", "type": "string",  "doc": "Event type"},
+    {"name": "E", "type": "long",    "doc": "Event time (Unix epoch ms)"},
+    {"name": "s", "type": "string",  "doc": "Symbol (e.g. BTCUSDT)"},
+    {"name": "p", "type": "string",  "doc": "Price as string"},
+    {"name": "q", "type": "string",  "doc": "Quantity as string"},
+    {"name": "T", "type": "long",    "doc": "Trade time (Unix epoch ms)"}
+  ]
+}
