@@ -12,8 +12,16 @@ This project implements a production-grade, end-to-end Big Data pipeline designe
 
 - **Data Source:** Connects to the Binance.US WebSocket API (`wss://stream.binance.us:9443`).
 - **Combined Streams:** Multiplexes connections to ingest live trade data for various crypto pairs (BTC, ETH, SOL, XRP, BNB, ADA) simultaneously through a single persistent connection to reduce network overhead.
-- **Producer Logic:** A robust Python script utilizing the `kafka-python` library for broker communication and `websocket-client` for real-time streaming.
-- **Message Delivery:** Asynchronously publishes raw JSON trade data into an Apache Kafka topic named `crypto_trades`.
+- **Producer Logic:** A robust Python script utilizing the `confluent-kafka` library with Avro serialization for broker communication and `websocket-client` for real-time streaming.
+- **Message Delivery:** Serializes each trade as a schema-validated Avro binary payload and publishes it into an Apache Kafka topic named `crypto_trades`.
+
+### Data Contracts (Schema Registry & Avro)
+
+- **Schema Registry:** A centralized Confluent Schema Registry service stores and versions the Avro schema, acting as a formal contract between the producer and consumer.
+- **Avro Serialization:** The producer serializes every message using Apache Avro instead of raw JSON, resulting in compact binary payloads and strict schema enforcement at write time.
+- **Schema Validation:** If the producer attempts to send a message with missing or mistyped fields, the `AvroSerializer` rejects it immediately — preventing corrupt data from ever reaching Kafka.
+- **Consumer Integration:** The Spark consumer fetches the registered Avro schema from the Schema Registry at startup using `from_avro()`, ensuring the deserialization schema always matches the producer's contract.
+- **Schema Evolution:** The registry supports backward-compatible schema evolution, allowing fields to be safely added or deprecated without breaking downstream consumers.
 
 ### Distributed Processing (Spark Structured Streaming)
 
@@ -69,6 +77,7 @@ The project reads runtime settings from a `.env` file at the repository root. En
 ```text
 KAFKA_BROKER=localhost:9092
 KAFKA_TOPIC=crypto_trades
+SCHEMA_REGISTRY_URL=http://localhost:8081
 BINANCE_WS_URL=wss://stream.binance.us:9443/stream?streams=btcusdt@trade/ethusdt@trade/solusdt@trade/bnbusdt@trade/adausdt@trade/xrpusdt@trade
 ```
 
@@ -120,6 +129,16 @@ Go to Dashboards to view the auto-provisioned analytics:
 ## Troubleshooting & Operations
 
 Spark ↔ Kafka Connectivity: When running Spark locally on the host, use localhost:9092. If containerizing the Spark job, use the Docker bridge network DNS: kafka:29092.
+
+**Verify Schema Registry:**
+
+```bash
+# List all registered subjects
+curl http://localhost:8081/subjects
+
+# View the latest Avro schema for the trades topic
+curl http://localhost:8081/subjects/crypto_trades-value/versions/latest
+```
 
 **Verify Database Records:**
 
