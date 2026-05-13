@@ -56,3 +56,8 @@ hadoop_datanode/
 /tmp/spark_checkpoints_crypto/
 
 .DS_Store
+
+# IDE settings
+.vscode/
+
+
